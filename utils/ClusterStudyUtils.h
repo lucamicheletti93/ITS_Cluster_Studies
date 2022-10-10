@@ -323,7 +323,7 @@ double calcMass(const V0 &v0, PID v0PID)
 }
 
 
-std::array<int, 2>
+/*std::array<int, 2>
 matchITStracktoMC(const std::vector<std::vector<o2::MCTrack>> &mcTracksMatrix,
                   o2::MCCompLabel ITSlabel)
 {
@@ -337,4 +337,4 @@ matchITStracktoMC(const std::vector<std::vector<o2::MCTrack>> &mcTracksMatrix,
     }
 
     return outArray;
-}
+}*/
