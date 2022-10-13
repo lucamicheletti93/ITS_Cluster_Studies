@@ -67,7 +67,7 @@ using MCLabCont = o2::dataformats::MCTruthContainer<o2::MCCompLabel>;
 o2::itsmft::ChipMappingMFT mMFTMapping;
 o2::itsmft::ChipMappingMFT mMFTChipMapper;
 
-void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::string outLabel="_myFirstTest", bool isOldData=true, unsigned int pix_thr = 0, bool verbose=false)
+void mcOrigin(std::string inPath="/home/lmichele/alice/mft_sim_full/myDir/", std::string outLabel="_myFirstTest", bool isOldData=true, unsigned int pix_thr = 2, bool verbose=false)
 {
     /*
      - outLabel: label added to final root file 
@@ -101,9 +101,12 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
     MCtree->Branch("Layer", &Layer);
 
     TH1D *hCLid = new TH1D("hCLid", ";MC Track ID; entries", 8000, -0.5, 7999.5);
-    TH1D *hCLsizeAll = new TH1D("hCLsizeAll", ";CL size; entries", 100, -0.5, 99.5);
-    TH1D *hTrackCLid = new TH1D("hTrackCLid", ";MC Track ID; entries", 10000, -0.5, 9999.5);
-    TH1D *hCLsizeNucl = new TH1D("hCLsizeNucl", ";CL size; entries", 100, -0.5, 99.5);
+    TH1D *hCLsizeAll = new TH1D("hCLsizeAll", ";CL size; entries", 500, -0.5, 499.5);
+    TH1D *hCLsizeTracks = new TH1D("hCLsizeTracks", ";CL size; entries", 500, -0.5, 499.5);
+    TH1D *hTrackCLid = new TH1D("hTrackCLid", ";MC Track ID; entries", 20000, -0.5, 19999.5);
+    TH1D *hCLsizeNuclTrk = new TH1D("hCLsizeNuclTrk", ";CL size; entries", 500, -0.5, 499.5);
+    TH1D *hCLsizePionTrk = new TH1D("hCLsizePionTrk", ";CL size; entries", 500, -0.5, 499.5);
+    TH1F *hCLsizeMean = new TH1F("hCLsizeMean", ";CL size; entries", 500, -0.5, 499.5);
     TH1D *hPDGcode = new TH1D("hPDGcode", ";PDG code; entries", 20000, -0.5, 19999.5);
     TH1D *hPDGcodeOut = new TH1D("hPDGcodeOut", ";PDG code; entries", 20000, -0.5, 19999.5);
     TH1D *hPDGmass = new TH1D("hPDGmass", ";PDG mass (); entries", 10000, -0.5, 99.5);
@@ -116,6 +119,9 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
     hPDGp->SetDirectory(nullptr);
     hPDGcode->SetDirectory(nullptr);
     hCLsizeAll->SetDirectory(nullptr);
+    hCLsizeNuclTrk->SetDirectory(nullptr);
+    hCLsizePionTrk->SetDirectory(nullptr);
+    hCLsizeMean->SetDirectory(nullptr);
 
     LOG(info) << "------------------ LOADING INPUT FILES ------------------";
     // Topology dictionary
@@ -127,7 +133,7 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
     if (isOldData)
     {
         LOG(info) << "Loading OLD dictionary: if you are analysing data older than JUNE should be fine";
-        mdict.readFromFile(o2::base::DetectorNameConf::getAlpideClusterDictionaryFileName(o2::detectors::DetID::ITS, "../utils/ITS"));
+        mdict.readFromFile(o2::base::DetectorNameConf::getAlpideClusterDictionaryFileName(o2::detectors::DetID::MFT, "../utils/ITS"));
     }
     else
     {
@@ -179,19 +185,20 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
     {
         if (true)
         {
-            if (counter > 10)
-            {
-                continue;
-            }
+            //if (counter > 10)
+            //{
+                //continue;
+            //}
             counter ++;
         }
         //counter ++;
         LOG(info) << "Analysing directory: " << dir <<"  counter:"<<counter;
         std::string o2clus_its_file = dir + "/" + "mftclusters.root";
         std::string o2trac_its_file = dir + "/" + "mfttracks.root";
+        LOG(info) << dir.substr(44, dir.size()).data();
         //std::string o2kine_file = dir + "/" + Form("sgn_%s_Kine.root", dir.substr(66, dir.size()).data());
         //std::string o2kine_file = dir + "/" + Form("sgn_%s_Kine.root", dir.substr(1, dir.size()).data());
-        std::string o2kine_file = dir + "/" + Form("sgn_%i_Kine.root", counter);
+        std::string o2kine_file = dir + "/" + Form("sgn_%s_Kine.root", dir.substr(44, dir.size()).data());
         //std::string o2kine_file = dir + "/" + "sgn_10_Kine.root";
 
         auto fITSclus = TFile::Open(o2clus_its_file.data());
@@ -282,6 +289,8 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
             o2::mft::TrackMFT ITStrack;
             std::vector<o2::itsmft::ClusterPattern> pattVec;
             getClusterPatterns(pattVec, ITSclus, ITSpatt, mdict, gman);
+            double meanCLsize = 0;
+            bool allCLsOk = true;
             for (unsigned int iTrack{0}; iTrack < ITStracks->size(); iTrack++)
             {   // LOOP OVER TRACKS
                 if (iTrack%10 == 0 && verbose)
@@ -295,12 +304,15 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
                 auto firstClus = ITStrack.getExternalClusterIndexOffset();
                 //auto ncl = ITStrack.getNumberOfClusters();
                 auto ncl = ITStrack.getNumberOfPoints();
-                LOG(info) << "CL offset = " << firstClus << "; N. CLs = " << ncl;
+                //LOG(info) << "CL offset = " << firstClus << "; N. CLs = " << ncl;
 
+                meanCLsize = 0;
+                std::vector <int> vectCLsize;
+                allCLsOk = true;
                 for (int icl = 0; icl < ncl; icl++)
                 {   // LOOP OVER CLUSTERS
-                    LOG(info) << "LOOP OVER CLUSTERS";
-                    LOG(info) << "---------> " << (*ITSTrackClusIdx)[firstClus + icl] << " ITSClus size = " << (*ITSclus).size() ;
+                    //LOG(info) << "LOOP OVER CLUSTERS";
+                    //LOG(info) << "---------> " << (*ITSTrackClusIdx)[firstClus + icl] << " ITSClus size = " << (*ITSclus).size() ;
                     //auto &clus = (*ITSclus)[(*ITSTrackClusIdx)[firstClus + icl]];
                     auto &patt = pattVec[(*ITSTrackClusIdx)[firstClus + icl]];
 
@@ -312,19 +324,18 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
                     //LayerID.push_back(layer1);
                     ////////////////////
 
-                    if ((*ITSTrackClusIdx)[firstClus + icl] > pattVec.size()) {
-                        LOG(info) << "---------------------------> " << (*ITSTrackClusIdx)[firstClus + icl] << " " << pattVec.size();
-                    }
+                    //if ((*ITSTrackClusIdx)[firstClus + icl] > pattVec.size()) {
+                        //LOG(info) << "---------------------------> " << (*ITSTrackClusIdx)[firstClus + icl] << " " << pattVec.size();
+                    //}
                     
                     int npix = patt.getNPixels();
-                    LOG(info) << "NUMBER of PIXELS = " << npix;
+                    vectCLsize.push_back(npix);
+                    meanCLsize += npix;
+                    //LOG(info) << "NUMBER of PIXELS = " << npix;
                     auto &clus = (*ITSclus)[(*ITSTrackClusIdx)[firstClus + icl]];
                     if (npix > pix_thr)
                     {
-                        if (ncl > 4) {
-                            hCLsizeNucl->Fill(npix);
-                        }
-                        
+                        hCLsizeTracks->Fill(npix);
 
                         auto &labCls = (clusLabArr->getLabels(ITSTrackClusIdx->at(firstClus+icl)))[0];
                         int  trackID, evID, srcID;
@@ -335,8 +346,19 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
                             LOG(info) << "Labels info: trackID="<<trackID<<", eventID="<<evID<<", srcID="<<srcID;
                         }
                         hTrackCLid->Fill(trackID);
+                    } else {
+                        allCLsOk = false;
                     }
                 }
+                if (ncl > 8 && allCLsOk) {
+                    meanCLsize = meanCLsize / ncl;
+                    hCLsizeMean->Fill(meanCLsize);
+                    for (int i = 0;i < int (vectCLsize.size());i++) {
+                        printf("%i ", vectCLsize.at(i));
+                    }
+                    printf("\n");
+                }
+                vectCLsize.clear();
             }
 
         if (LargeCLTrackID.size() == 0)
@@ -365,9 +387,10 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
             }
         }
 
-        LOG(info) << "---- GETTING MC tracks info ----";
+        //LOG(info) << "---- GETTING MC tracks info ----";
         for (int i = 0; i < LargeCLEvID.size(); i++)
         {
+            
             auto evID = LargeCLEvID.at(i);
             auto trID = LargeCLTrackID.at(i);
             if (verbose)
@@ -383,19 +406,27 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
             //if (trPDG < 1000000000)
             //{
                 //double mass = TDatabasePDG::Instance()->GetParticle(trPDG)->Mass();
-            CLsize = CLsiezes.at(i);
-            p = mcTracksMatrix[evID][trID].GetP();
-            phi = mcTracksMatrix[evID][trID].GetPhi();
-            eta = mcTracksMatrix[evID][trID].GetEta();
-            start_coord_x = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesX();
-            start_coord_y = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesY();
-            start_coord_z = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesZ();
-            E = mcTracksMatrix[evID][trID].GetEnergy();
-            PDGID = mcTracksMatrix[evID][trID].GetPdgCode();
-            ProcessID = mcTracksMatrix[evID][trID].getProcess();
-            Layer = LayerID.at(i);
 
-            MCtree->Fill();
+            if (trPDG == 1000020030 || trPDG == 211) {
+                if (mcTracksMatrix[evID][trID].GetP() > 1) {
+                    continue;
+                } else {
+                    if (TMath::Abs(trPDG) == 1000020030) {hCLsizeNuclTrk->Fill(CLsiezes.at(i));}
+                    if (TMath::Abs(trPDG) == 211) {hCLsizePionTrk->Fill(CLsiezes.at(i));}
+                    CLsize = CLsiezes.at(i);
+                    p = mcTracksMatrix[evID][trID].GetP();
+                    phi = mcTracksMatrix[evID][trID].GetPhi();
+                    eta = mcTracksMatrix[evID][trID].GetEta();
+                    start_coord_x = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesX();
+                    start_coord_y = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesY();
+                    start_coord_z = mcTracksMatrix[evID][trID].GetStartVertexCoordinatesZ();
+                    E = mcTracksMatrix[evID][trID].GetEnergy();
+                    PDGID = mcTracksMatrix[evID][trID].GetPdgCode();
+                    ProcessID = mcTracksMatrix[evID][trID].getProcess();
+                    Layer = LayerID.at(i);
+                    MCtree->Fill();
+                }
+            }
 
             //if (verbose)
 
@@ -422,11 +453,14 @@ void mcOrigin(std::string inPath="/Users/lucamicheletti/cernbox/mft_sim/", std::
     outFile.cd();
     hCLid->Write();
     hTrackCLid->Write();
-    hCLsizeNucl->Write();
+    hCLsizeNuclTrk->Write();
+    hCLsizePionTrk->Write();
+    hCLsizeMean->Write();
     hPDGcode->Write();
     hPDGmass->Write();
     hPDGp->Write();
     hCLsizeAll->Write();
+    hCLsizeTracks->Write();
     MCtree->Write();
 
     //LOG(info) << "------------------ PDG OUTSIDER INFO ------------------";
