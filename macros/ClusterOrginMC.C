@@ -59,7 +59,7 @@ using ITSCluster = o2::BaseCluster<float>;
 using Vec3 = ROOT::Math::SVector<double, 3>;
 using MCLabCont = o2::dataformats::MCTruthContainer<o2::MCCompLabel>;
 
-void mcOrigin(std::string inPath="", std::string outLabel="", bool isOldData=false, unsigned int pix_thr = 40, bool verbose=false) 
+void mcOrigin(std::string inPath="/home/lmichele/alice/its_sim/myDir/", std::string outLabel="_myTestIts", bool isOldData=false, unsigned int pix_thr = 0, bool verbose=false) 
 {
     /*
      - outLabel: label added to final root file 
